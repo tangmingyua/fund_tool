@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="https://www.bootcss.com/p/buttons/css/buttons.css">
+    <style>
+        span{
+            word-break:normal;
+            width:auto;
+            display:block;
+            white-space:pre-wrap;
+            word-wrap : break-word ;
+            overflow: hidden ;
+            font-size: 22px;
+        }
+        .title{
+            box-shadow: 2px 4px 6px #000;
+            font-size:20px;
+            font-style:italic
+        }
+        input{
+            outline-style: none ;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 13px 14px;
+            width: 220px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: "Microsoft soft";
+        }
+        input:focus{
+            border-color: #66afe9;
+            outline: 0;
+            -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(102,175,233,.6);
+            box-shadow: inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(102,175,233,.6)
+        }
+
+    </style>
+</head>
+<body>
+<span id = "main"></span>
+<span class="title" >黄金</span>
+<span id = "gold" style="color: gold"></span>
+<span class="title">自选基金</span>
+<div id = "fund"></div>
+<span class="title">当日涨幅最高</span>
+<div id="high_fund">
+</div>
+<span class="title" >相关快讯</span>
+<span id = "news" ></span>
+<input type="text" id="fund_id" value="0">
+<button class="button button-glow button-rounded button-raised button-primary" onclick="setFund()">添加</button>
+
+</body>
+<script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+<script>window.$ = window.jQuery = require('./node_modules/jquery/dist/jquery.js') </script>
+<script>window.request = require('./node_modules/request/request.js')</script>
+<script>
+    const shell = require('electron').shell;
+    const cheerio = require('cheerio');
+    //store存储
+    const Store = require('electron-store');
+    const getChromeDocument = require('./lib/request-helper').getChromeDocument;
+
+    const schema = {
+        funds:{
+            "type":"array"
+        }
+    }
+
+    const store = new Store({schema});
+
+    //去重
+    function unique(arr) {
+        if (!Array.isArray(arr)) {
+            console.log('type error!')
+            return;
+        }
+        arr = arr.sort()
+        var arrry= [arr[0]];
+        for (var i = 1; i < arr.length; i++) {
+            if (arr[i] !== arr[i-1]) {
+                arrry.push(arr[i]);
+            }
+        }
+        return arrry;
+    }
+
+
+
+    document.getElementById("main").innerText = parseInt((new Date("2020-05-23").getTime()-new Date().getTime())/1000)
+    // $.get("http://api.k780.com/?app=finance.shgold&goldid=1051&version=3&appkey=49561&sign=d4c49efb3a6a7712141fd5d76fa976be&format=json",function(data,status){
+    //     // let result = JSON.parse(data);
+    //     console.log(data)
+    //     if(data["success"]==1 && data["result"]){
+    //         document.getElementById("gold").innerText = data["result"]["buy_price"]
+    //     }
+    // });
+    //200 1000 300 100
+    setInterval(_=>{
+        document.getElementById("main").innerText = parseInt((new Date("2020-05-23").getTime()-new Date().getTime())/1000)
+    },1000)
+    // setInterval(_=>{
+    //     $.get("http://api.k780.com/?app=finance.shgold&goldid=1051&version=3&appkey=49561&sign=d4c49efb3a6a7712141fd5d76fa976be&format=json",function(data,status){
+    //         // let result = JSON.parse(data);
+    //         // console.log(data)
+    //         if(data["success"]==1 && data["result"]){
+    //             document.getElementById("gold").innerText = data["result"]["buy_price"]
+    //         }
+    //     });
+    // },72000)
+
+
+    const setFundOnList = (fund_id)=>{
+        $.get("http://fundgz.1234567.com.cn/js/"+fund_id+".js",function(body){
+            let result = JSON.parse(body.replace(/jsonpgz\((.*)\);/,"$1"));
+            let span = document.createElement('span');
+            if(parseFloat(result["gszzl"])>0){
+                span.style.color = "red";
+            } else {
+                span.style.color = "green";
+            }
+            span.setAttribute("id",fund_id);
+            span.innerText = result["name"]+"("+fund_id+")"+",  "+result["gszzl"];
+            span.innerHTML += `       <button class="button button-glow button-rounded button-caution" onclick='deleteFund("${fund_id}",this)'>删除</button>`;//注册删除按钮
+            document.getElementById("fund").appendChild(span);
+            //定时更新
+            setInterval(_=>{
+                $.get("http://fundgz.1234567.com.cn/js/"+fund_id+".js",function(body){
+                    let result = JSON.parse(body.replace(/jsonpgz\((.*)\);/,"$1"));
+                    let fund_span = document.getElementById(fund_id);
+                    if(parseFloat(result["gszzl"])>0){
+                        fund_span.style.color = "red";
+                    } else {
+                        fund_span.style.color = "green";
+                    }
+                    fund_span.innerText = result["name"]+"("+fund_id+")"+",  "+result["gszzl"];
+                    span.innerHTML += `       <button class="button button-glow button-rounded button-caution" onclick='deleteFund("${fund_id}",this)'>删除</button>`;
+                }).catch(e=>{
+                    console.log("no fund: "+k);
+                });
+            },30000)
+        }).catch(e=>{
+            console.log("no fund: "+k);
+        });
+    }
+
+
+    let funds = [];
+    funds = store.get("funds") || [];//获取全部本地存储的基金
+    funds = unique(funds);
+
+
+    for(let k of funds){//遍历初始
+        setFundOnList(k);
+    }
+    // setInterval(_=>{
+    //     document.getElementById("fund").innerText = "";
+    //     for(let k of funds){
+    //         $.get("http://fundgz.1234567.com.cn/js/"+k+".js",function(body){
+    //             let result = JSON.parse(body.replace(/jsonpgz\((.*)\);/,"$1"));
+    //             let span = document.createElement('span');
+    //             if(parseFloat(result["gszzl"])>0){
+    //                 span.style.color = "red";
+    //             } else {
+    //                 span.style.color = "green";
+    //             }
+    //             span.innerText = result["name"]+",  "+result["gszzl"];
+    //             document.getElementById("fund").appendChild(span)
+    //         }).catch(e=>{
+    //             console.log("no fund: "+k);
+    //         });
+    //     }
+    // },30000)
+
+
+
+    //设置 添加 基金
+    function setFund(){
+        let fund_id = document.getElementById("fund_id").value;
+        $.get("http://fundgz.1234567.com.cn/js/"+document.getElementById("fund_id").value+".js",function(body){
+            if(body.startsWith("jsonpgz")){
+                let list = store.get('funds') || [];
+                if(list.indexOf(document.getElementById("fund_id").value)>-1){
+                    alert("不需要重复添加基金代码")
+                } else {
+                    list.push(document.getElementById("fund_id").value);
+                    list =unique(list);
+                    store.set('funds',list);
+                    console.log(store.get("funds"));
+                    let result = JSON.parse(body.replace(/jsonpgz\((.*)\);/,"$1"));
+                    let span = document.createElement('span');
+                    if(parseFloat(result["gszzl"])>0){
+                        span.style.color = "red";
+                    } else {
+                        span.style.color = "green";
+                    }
+                    span.innerText = result["name"]+"("+fund_id+")"+",  "+result["gszzl"];
+                    span.innerHTML += `       <button class="button button-glow button-rounded button-caution" onclick='deleteFund("${fund_id}",this)'>删除</button>`;//注册删除按钮
+                    document.getElementById("fund").appendChild(span);
+                    setInterval(_=>{
+                        $.get("http://fundgz.1234567.com.cn/js/"+fund_id+".js",function(body){
+                            let result = JSON.parse(body.replace(/jsonpgz\((.*)\);/,"$1"));
+                            let fund_span = document.getElementById(fund_id);
+                            if(parseFloat(result["gszzl"])>0){
+                                fund_span.style.color = "red";
+                            } else {
+                                fund_span.style.color = "green";
+                            }
+                            fund_span.innerText = result["name"]+"("+fund_id+")"+",  "+result["gszzl"];
+                            span.innerHTML += `       <button class="button button-glow button-rounded button-caution" onclick='deleteFund("${fund_id}",this)'>删除</button>`;
+                        }).catch(e=>{
+                            console.log("no fund: "+k);
+                        });
+                    },30000)
+                }
+            } else {
+                alert("不存在基金代码： "+document.getElementById("fund_id").value)
+            }
+        }).catch(e=>{
+            alert("不存在基金代码： "+document.getElementById("fund_id").value)
+        });
+    }
+
+
+    Array.prototype.remove = function(val) {
+        var index = this.indexOf(val);
+        if (index > -1) {
+            this.splice(index, 1);
+        }
+    };
+
+    //删除基金
+    function deleteFund(fund_id,event){
+        let list = store.get('funds') || [];
+        list =unique(list);
+        list.remove(fund_id);
+        console.log(fund_id)
+        store.set('funds',list);
+        let obj = event.parentNode;
+        obj.parentNode.removeChild(obj);
+    }
+
+
+
+    //爬取天天基金  http://fund.eastmoney.com/data/fundranking.html
+    const crawlTTJJ = async (url)=>{
+        let result =  await getChromeDocument(url);
+        let web =cheerio.load(result);
+        web('.dbtable').find('tr').each((i,e)=>{
+            if(i>1 && i <10){
+                let span = document.createElement('span');
+                let str = "";
+                let rate = "";
+                web(e).find('td').each((i1,e1)=>{
+                    e1 = web(e1).text();
+                    if(i1==2){
+                        str += "("+e1+")";
+                    } else if(i1==3){
+                        str += e1;
+                    } else if(i1==4){
+                        str += "["+e1+"]"
+                    } else if(i1==7){
+                        str += ":   "+e1;
+                        rate = e1;
+                    }
+                    if(i1==19){
+                        console.log(rate)
+                        if(rate.startsWith("-")){
+                            span.style.color = "green";
+                        } else {
+                            span.style.color = "red";
+                        }
+                        span.innerText = str;
+                        document.getElementById("high_fund").appendChild(span);
+                    }
+                })
+            }
+        })
+    }
+
+    crawlTTJJ('https://fund.eastmoney.com/data/fundranking.html#tall;c0;r;srzdf;pn50;ddesc;qsd20190407;qed20200407;qdii;zq;gg;gzbd;gzfs;bbzt;sfbb')
+
+    // setInterval(_=>{
+    //     crawlTTJJ('https://fund.eastmoney.com/data/fundranking.html#tall;c0;r;srzdf;pn50;ddesc;qsd20190407;qed20200407;qdii;zq;gg;gzbd;gzfs;bbzt;sfbb')
+    // },30000)
+
+    const crawlGold = async (url)=>{
+        let result =  await getChromeDocument(url);
+        let web =cheerio.load(result);
+        web('#TabInfo').find('tr').each((i,e)=>{
+            if(i==1){
+                let str = "";
+                web(e).find('td').each((i1,e1)=>{
+                    e1 = web(e1).text();
+                    console.log(i1,e1)
+                    if(i1==1){
+                        str += e1;
+                    } else if(i1==6){
+                        str += "   "+e1;
+                    }
+                    if(i1==7){
+                        console.log(str)
+                        document.getElementById("gold").innerText = str;
+                    }
+                })
+            }
+        })
+    }
+    crawlGold("http://gold.cnfol.com/fol_inc/v6.0/Gold/GoldTD.shtml");//
+    setInterval(_=>{
+        crawlGold("http://gold.cnfol.com/fol_inc/v6.0/Gold/GoldTD.shtml");
+    },30000)
+
+
+    const crawl21Express = async (url)=>{
+        let result =  await getChromeDocument(url);
+        let web =cheerio.load(result);
+        let arr =[];
+        let html  = ""
+        web('.li').each(async (i,e)=>{
+            arr[i] = {};
+            arr[i]["time"]=web(e).find(".time").text();
+            arr[i]["level"] = (web(e).find('.kBcont').attr("style") && web(e).find('.kBcont').attr("style").indexOf("color:red"))>-1?1:0;
+            arr[i]["content"] = web(e).find('.kBcont').text().replace("【快讯】","");
+            html += `<span style="${arr[i]["level"]==1?'color:red':'color:black'}">${arr[i]["time"]}  ${arr[i]["content"]}</span><br><br>`
+        })
+        document.getElementById("news").innerHTML = html;
+    }
+    crawl21Express("http://www.21jingji.com/channel/express/");//
+    setInterval(_=>{
+        crawl21Express("http://www.21jingji.com/channel/express/");
+    },60000)
+</script>
+</html>

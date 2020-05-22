@@ -1,0 +1,28 @@
+{
+  "name": "djs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dist": "electron-builder --win --x64"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.3",
+    "crypto": "^1.0.1",
+    "electron-store": "^5.1.1",
+    "iconv-lite": "^0.5.1",
+    "jquery": "^3.4.1",
+    "phantom": "^6.3.0",
+    "puppeteer": "^2.1.1",
+    "qiniu": "^7.3.0",
+    "request": "^2.88.2",
+    "require": "^2.4.20",
+    "stream": "0.0.2"
+  },
+  "devDependencies": {
+    "electron-builder": "^22.4.1"
+  }
+}
